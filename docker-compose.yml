@@ -1,0 +1,63 @@
+version: '2'
+services:
+  app:
+    build: ../ci-workshop-app
+    ports:
+      - "8080:8080"
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: app
+    depends_on:
+      - fluentd
+
+  fluentd:
+    build: ./fluentd
+    volumes:
+      - ./fluentd/conf:/fluentd/etc
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    depends_on:
+      - elasticsearch
+
+  elasticsearch:
+    image: elasticsearch:6.6.1
+    # restart: always
+    environment:
+      ES_JAVA_OPTS: "-Xms4g -Xmx4g"
+      # bootstrap.memory_lock: "true"
+    expose:
+      - 9200
+    ports:
+      - "9200:9200"
+    volumes:
+      - ./elasticsearch-volume:/usr/share/elasticsearch/data
+    mem_limit: 4G
+
+  kibana:
+    image: kibana:6.6.1
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
+  grafana:
+    image: grafana/grafana:5.4.3
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana-storage:/var/lib/grafana
+    environment:
+      GF_SERVER_ROOT_URL: http://localhost:3000
+      GF_SECURITY_ADMIN_PASSWORD: secret
+      GF_PATHS_DATA: /var/lib/grafana
+    depends_on:
+      - kibana
+
+# volumes:
+#   elasticsearch-volume:
+#     driver: local
+#   grafana-storage:
+#     driver: local
